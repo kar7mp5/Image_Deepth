@@ -9,10 +9,23 @@ Documents of studying image depth maps.
     - [Edge Detection](#edge-detection)
 
 ## Environment Setting
+
+### Local
 Create python virtual environment and install libraries automatically:  
 ```bash
 $ chmod +x install.sh
 $ ./install.sh
+```
+
+### Docker
+To run:
+```
+$ docker-compose up --build
+```
+
+To stop:
+```
+$ docker-compose down
 ```
 
 ## History of Study
