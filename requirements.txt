@@ -1,3 +1,5 @@
+notebook
+
 opencv-python
 torch
 mediapipe
@@ -6,3 +8,5 @@ scipy
 
 torchvision 
 timm
+
+selenium
