@@ -21,14 +21,15 @@ $ ./install.sh
 [The Sum of Squared Differences (SSD)](https://en.wikipedia.org/wiki/Mean_squared_error) is a commonly used metric in computer vision, particularly for tasks like stereo vision or template matching.  
 It calculates the similarity between two image patches by measuring the squared differences of their pixel intensities.  
 Here's a detailed breakdown of the formula you provided:  
+
 $$
 SSD(x, y, d) = \sum_{i=-\frac{B}{2}}^{\frac{B}{2}} \sum_{j=-\frac{B}{2}}^{\frac{B}{2}} \left( I_L(x + i, y + j) - I_R(x + i - d, y + j) \right)^2
 $$
 
-- **OpenCV**
+- **OpenCV**  
 ![openCV_SSD](./img/openCV_SSD.png)
 
-- **Numpy**
+- **Numpy**  
 ![numpy_SSD](./img/numpy_SSD.png)
 
 ### Binocular Disparity
