@@ -1,18 +1,27 @@
 #! ./venv/bin/python3
+# Cralwing libaries
 from selenium import webdriver
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.support.wait import WebDriverWait
 
+from concurrent.futures import ThreadPoolExecutor
+
+# Depth processing libraries
+import torch
+import cv2
+import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+import mimetypes
 import requests
 import time
 import os
 
-import mimetypes
-from tqdm import tqdm
-
-from concurrent.futures import ThreadPoolExecutor
-from selenium.webdriver.firefox.options import Options
+import warnings
+# Disable timm logging
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 
@@ -33,11 +42,21 @@ class GetImageDepth:
             keyword (str): The keyword used to search for images.
             file_path (str): The directory path to save the depth maps.
         """
+        # Check for keyword is empty
+        if "".__eq__(keyword):
+            raise ValueError("Keyword must not be empty")
+
+        # Check for file path is empty
+        if "".__eq__(file_path):
+            raise ValueError("File path must not be empty")
+        
         self.keyword = keyword
         self.file_path = file_path
-        os.makedirs(file_path, exist_ok=True)  # Create the directory if it doesn't exist
-        os.makedirs(os.path.join(file_path, "origin_img"), exist_ok=True)
-        os.makedirs(os.path.join(file_path, "depth_img"), exist_ok=True)
+        
+        # Create the directory if it doesn't exist
+        os.makedirs(file_path, exist_ok=True)
+        os.makedirs(os.path.join(file_path, "origin"), exist_ok=True)
+        os.makedirs(os.path.join(file_path, "depth"), exist_ok=True)
 
 
     def download_images(self):
@@ -136,13 +155,85 @@ class GetImageDepth:
                 file_extension = '.jpg'
 
             # Save the image with the correct file extension
-            file_name = os.path.join(os.path.join(self.file_path, "origin_img"), f"image_{index}{file_extension}")
+            file_name = os.path.join(os.path.join(self.file_path, "origin"), f"image_{index}{file_extension}")
             with open(file_name, "wb") as file:
                 for chunk in response.iter_content(1024):
                     file.write(chunk)
 
         except Exception as e:
             print(f"Failed to save image {index}: {e}")
+
+    
+    def convert_to_depth_image(self):
+        """
+        Convert normal images to depth images and save them on specific folder.
+        """
+        origin_image_list = os.listdir(os.path.join(self.file_path, "origin"))
+        self._convert_depth_image_concurrently(origin_image_list)
+
+
+    def _save_depth_image(self, image_file_path, index):
+        """
+        Convert origin image to depth map and save images on depth folder.
+        
+        Args:
+            image_file_path (str): The diretory path to save depth images.
+            index (int): The index of the image for naming.
+        """
+        # Load MiDaS model
+        model_type = "DPT_Large"  # Options: "DPT_Large", "DPT_Hybrid", "MiDaS_small"
+        midas = torch.hub.load("intel-isl/MiDaS", model_type)
+
+        # Move model to appropriate device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        midas.to(device)
+        midas.eval()
+
+        # Load MiDaS transform
+        midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
+
+        transform = midas_transforms.dpt_transform if model_type in ["DPT_Large", "DPT_Hybrid"] else midas_transforms.small_transform
+
+
+        # Load and preprocess the input image
+        input_image = cv2.imread(os.path.join(self.file_path, "origin", image_file_path))
+        input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
+
+        # Ensure the input image is resized to the expected dimensions
+        # Adjust based on model_type
+        input_image = cv2.resize(input_image, (384, 384))
+
+        input_batch = transform(input_image).to(device)
+
+        # Perform depth estimation
+        with torch.no_grad():
+            prediction = midas(input_batch)
+            prediction = torch.nn.functional.interpolate(
+                prediction.unsqueeze(1),
+                size=input_image.shape[:2],
+                mode="bicubic",
+                align_corners=False,
+            ).squeeze()
+
+        # Normalize the depth map for visualization
+        depth_map = prediction.cpu().numpy()
+        depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+
+        # Save depth map image on specific folder
+        plt.imsave(os.path.join(self.file_path, "depth", f"depth_{index}.png"), 
+                   depth_map, 
+                   cmap="inferno")
+
+
+    def _convert_depth_image_concurrently(self, origin_image_list):
+        """
+        Convert depth images concurrently using ThreadPoolExecutor.
+        
+        Args:
+            origin_image_list (list[str]): Origin image list would be converted.
+        """
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            list(tqdm(executor.map(self._save_depth_image, origin_image_list, range(len(origin_image_list))), total=len(origin_image_list), desc="Preprocessing images"))
 
 
 
@@ -153,3 +244,4 @@ if __name__ == "__main__":
 
     getImageDepth = GetImageDepth(keyword=keyword, file_path=file_path)
     getImageDepth.download_images()
+    getImageDepth.convert_to_depth_image()
