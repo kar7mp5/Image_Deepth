@@ -10,3 +10,4 @@ torchvision
 timm
 
 selenium
+numba
