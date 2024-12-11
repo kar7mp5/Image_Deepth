@@ -13,8 +13,12 @@ Documents of studying image depth maps.
 ### Local
 Create python virtual environment and install libraries automatically:  
 ```bash
-$ chmod +x install.sh
-$ ./install.sh
+$ ./setup_venv.sh
+```
+
+If you want to set specific python version and `requirements.txt` file path, try the following code:  
+```bash
+$ ./setup_venv.sh -p <python-version> -r <requirements.txt-file-path>
 ```
 
 ### Docker
