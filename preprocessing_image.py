@@ -3,13 +3,15 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 
 from concurrent.futures import ThreadPoolExecutor
 
 # Depth processing libraries
 import torch
+torch.cuda.empty_cache()
+
 import cv2
 import matplotlib.pyplot as plt
 
@@ -69,12 +71,15 @@ class GetImageDepth:
         Raises:
             AssertionError: If no results are found on the search page.
         """
-        # Set up Firefox options for headless mode
+        # Set up Chrome options for headless mode
         options = Options()
-        options.add_argument("--headless")  # Run Firefox in headless mode
+        options.add_argument("--headless")  # Run Chrome in headless mode
+        options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
+        options.add_argument("--no-sandbox")  # Disable sandboxing for security restrictions
+        options.add_argument("--disable-extensions")  # Disable extensions
 
-        # Initialize the Firefox driver with options
-        driver = webdriver.Firefox(options=options)
+        # Initialize the Chrome driver with options
+        driver = webdriver.Chrome(options=options)
 
         # Navigate to Google Images search with the keyword
         search_url = f"https://www.google.com/search?q={self.keyword}&tbm=isch"
@@ -243,5 +248,5 @@ if __name__ == "__main__":
     file_path = os.path.join(os.getcwd(), "train_data")
 
     getImageDepth = GetImageDepth(keyword=keyword, file_path=file_path)
-    getImageDepth.download_images()
+    # getImageDepth.download_images()
     getImageDepth.convert_to_depth_image()
